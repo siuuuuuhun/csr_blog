@@ -1,13 +1,18 @@
 package com.tenco.csr_blog_v1.core;
 
+import com.tenco.csr_blog_v1.core.filter.JwtAuthorizationFilter;
 import com.tenco.csr_blog_v1.core.util.JwtProvider;
+import com.tenco.csr_blog_v1.core.util.RespFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -60,10 +65,66 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         // 1. H2 Console 허용
-        // http.headers()
+         http.headers(headers ->
+                 headers.frameOptions(frameOptions -> frameOptions.sameOrigin()));
 
         // 2. 스프링이 기본으로 제공하는 로그인 폼 화면을 끈다.
-        http.formLogin()
+        http.formLogin(
+                form -> form.disable());
+
+        // 3. Http Basic 인증 끈다
+        // HTTP Basic 이란 브라우저가 자동으로 팝업창을 띄워서 아이디/비밀번호를 입력 받는 방식을 말한다.
+        // 우리는 JWT 리액트를 사용할 예정이라 필요없음
+        http.httpBasic(
+                basic -> basic.disable());
+
+        // 4. CSRF 보안을 끈다.
+        // CSRF 는 쿠키를 이용한 공격 방식이지만, 이 프로젝트는 쿠키를 사용하지 않음
+        http.csrf(csrf -> csrf.disable());
+
+        // 5. 서버가 세션을 만들지 않도록 설정 (JWT 사용)
+        http.sessionManagement(session
+                -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+
+        // 6. JWT 인증 필터를 등록한다.
+        // 모든 요청이 들어올 때 JWTAuthorizationFilter 가 먼저 실행된다
+        // 즉, UsernamePasswordAuthenticationFilter 동작하기 전에 앞에 끼워 넣어야 우리가 원하는 방식으로 동작함
+        http.addFilterBefore(new JwtAuthorizationFilter(jwtProvider), UsernamePasswordAuthenticationFilter.class);
+
+        // 7. 위에서 만든 CORS 규칙을 시큐리티 필터에 등록한다.
+        http.cors(cors ->
+                cors.configurationSource(corsConfigurationSource()));
+
+        // 8. 인증, 권한 오류 발생 시 기본 설정이 아닌 우리가 정의한 내용으로 처리한다.
+        // 401, 403 발생 했을 경우 필터에서 걸러지기 때문에 기본적인 오류 메세지가 날라간다.
+        // 우리는 이것을 가공해서 정의된 규칙에 코드로 내려 주어야한다.
+        http.exceptionHandling(ex ->
+                ex.authenticationEntryPoint(
+                        (request, response, authException) ->
+                                RespFilter.fail(response, 401, "로그인 후 이용해주세요."))
+                        .accessDeniedHandler((request, response, accessDeniedException) ->
+                                RespFilter.fail(response, 403, "권한이 없습니다."))
+                );
+
+
+        // 9. URL 별 접근 권한 설정
+        // 경로 설정 시 순서는 위에서 적용이 되며, 따라서 구체적인 규칙을 위에, 범위가 넣은 규칙을 아래에 작성해야한다.
+        http.authorizeHttpRequests(
+                authorizationManagerRequestMatcherRegistry ->
+                        // 여기 경로는 ADMIN 만 들어올 수 있다.
+                        authorizationManagerRequestMatcherRegistry.requestMatchers("/api/admin/**").hasRole("ADMIN")
+                                // 게시글 목록, 상세보기(GET) 은 로그인 없이 누구나 허용
+                                .requestMatchers(HttpMethod.GET, "api/boards/**").permitAll()
+                                // 게시글 수정, 삭제, 작성, 댓글, 마이페이지는 로그인한 사용자만 가능
+                                // USER, ADMIN
+                                .requestMatchers("/api/users/**", "/api/boards/**", "/api/replies/**").hasAnyRole("USER", "ADMIN")
+                                // 위 경로에 걸리지 않은 나머지 모든 요청은 허용한다.
+                                .anyRequest().permitAll()
+
+
+        );
+
+        return http.build();
     }
 
 

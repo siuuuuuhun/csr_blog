@@ -4,6 +4,7 @@ import com.tenco.csr_blog_v1.user.User;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Component;
 
 /**
  * 방금 작업한 JwtUtil 클래스는 HTTP 가 뭔지, 스프링 시큐리티가 무엇인지 전혀 모름
@@ -12,6 +13,7 @@ import org.springframework.security.core.Authentication;
  * 우리가 JwtProvider 설계하는 이유는
  * HTTP 요청에서 Header 를 열어서 Bearer 토큰을 직접 꺼내는 역할의 클래스를 설계할 예정
  */
+@Component
 public class JwtProvider {
 
     // 요청 헤더에서 토큰 추출
