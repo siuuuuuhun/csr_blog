@@ -3,6 +3,7 @@ package com.tenco.csr_blog_v1.user;
 import com.tenco.csr_blog_v1.auth.AuthRequest;
 import com.tenco.csr_blog_v1.auth.AuthResponse;
 import com.tenco.csr_blog_v1.core.handler.errors.BadRequestException;
+import com.tenco.csr_blog_v1.core.handler.errors.ForbiddenException;
 import com.tenco.csr_blog_v1.core.handler.errors.NotFoundException;
 import com.tenco.csr_blog_v1.core.handler.errors.UnauthorizedException;
 import com.tenco.csr_blog_v1.core.util.JwtUtil;
@@ -35,7 +36,7 @@ public class UserService {
         User findUser = userRepository.findByUsername(requestDTO.username())
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
 
-        if(bCryptPasswordEncoder.matches(requestDTO.password(), findUser.getPassword()) == false) {
+        if (bCryptPasswordEncoder.matches(requestDTO.password(), findUser.getPassword()) == false) {
             throw new UnauthorizedException("비밀번호가 일치하지 않습니다.");
         }
         // 토큰 자동 생성
@@ -45,5 +46,28 @@ public class UserService {
     public AuthResponse.AvailableDTO 유저네임중복체크(String username) {
         boolean isAvailable = userRepository.existsByUsername(username);
         return new AuthResponse.AvailableDTO(isAvailable);
+    }
+
+
+    public AuthResponse.DTO 회원조회(Integer userId, Integer sessionUserId) {
+        if (!userId.equals(sessionUserId)) {
+            throw new ForbiddenException("조회 권한이 없습니다.");
+        }
+
+        User findUser = userRepository.findById(sessionUserId).orElseThrow(
+                () -> new NotFoundException("회원 정보를 찾을 수 없습니다."));
+
+        return new AuthResponse.DTO(findUser);
+    }
+
+    @Transactional
+    public AuthResponse.DTO 회원수정(UserRequest.UpdateDTO requestDTO, Integer sessionUserId) {
+        User findUser = userRepository.findById(sessionUserId)
+                .orElseThrow(() -> new NotFoundException("회원을 찾을 수 없습니다."));
+        // 사전 기반 지식 : 사용자 입력 1234 ----> 암호화 처리 해야함
+        String encPassword = bCryptPasswordEncoder.encode(requestDTO.password());
+        findUser.update(requestDTO.email(), encPassword); // 더티 체킹
+        return new AuthResponse.DTO(findUser);
+
     }
 }

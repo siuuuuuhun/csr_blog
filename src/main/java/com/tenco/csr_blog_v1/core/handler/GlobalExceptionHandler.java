@@ -25,7 +25,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ForbiddenException.class)
-    public ResponseEntity<?> exApi404(ForbiddenException e) {
+    public ResponseEntity<?> exApi403(ForbiddenException e) {
         log.warn("[WARN] 사용자 권한 실패 : " + e.getMessage());
         return Resp.fail(HttpStatus.FORBIDDEN, e.getMessage());
     }

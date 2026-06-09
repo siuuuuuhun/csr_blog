@@ -103,7 +103,7 @@ public class SecurityConfig {
                         (request, response, authException) ->
                                 RespFilter.fail(response, 401, "로그인 후 이용해주세요."))
                         .accessDeniedHandler((request, response, accessDeniedException) ->
-                                RespFilter.fail(response, 403, "권한이 없습니다."))
+                                RespFilter.fail(response, 403, "권한이 없습니다.asdasdasdasd"))
                 );
 
 
@@ -114,7 +114,7 @@ public class SecurityConfig {
                         // 여기 경로는 ADMIN 만 들어올 수 있다.
                         authorizationManagerRequestMatcherRegistry.requestMatchers("/api/admin/**").hasRole("ADMIN")
                                 // 게시글 목록, 상세보기(GET) 은 로그인 없이 누구나 허용
-                                .requestMatchers(HttpMethod.GET, "api/boards/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/boards/**").permitAll()
                                 // 게시글 수정, 삭제, 작성, 댓글, 마이페이지는 로그인한 사용자만 가능
                                 // USER, ADMIN
                                 .requestMatchers("/api/users/**", "/api/boards/**", "/api/replies/**").hasAnyRole("USER", "ADMIN")
